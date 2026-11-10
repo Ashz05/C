@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII Studio & Text Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['"Fira Code"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .dark ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.7);
+    }
+    .code-editor-area {
+      tab-size: 4;
+      white-space: pre;
+    }
+    .line-number-gutter {
+      user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 font-sans min-h-screen flex flex-col antialiased transition-colors duration-200">
+
+  <!-- Header -->
+  <header class="h-14 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-mono font-bold text-sm shadow-md shadow-indigo-500/20">
+        0x
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          ASCII Studio <span class="text-xs py-0.5 px-2 bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-mono rounded font-medium">v1.2</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Top Action Buttons -->
+    <div class="flex items-center gap-2">
+      <!-- Quick Table Insert -->
+      <button id="insertTableBtn" title="Insert ASCII Table to Editor" class="px-3 py-1.5 text-xs font-medium rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 border border-slate-300 dark:border-slate-700">
+        <i class="fa-solid fa-table"></i>
+        <span class="hidden sm:inline">Insert ASCII Table</span>
+      </button>
+
+      <!-- Clear Button -->
+      <button id="clearEditorBtn" title="Clear Editor" class="px-2.5 py-1.5 text-xs font-medium rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 transition-colors">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+
+      <!-- Export Dropdown / Buttons -->
+      <div class="relative group">
+        <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5 transition-colors">
+          <i class="fa-solid fa-download"></i>
+          <span>Export</span>
+          <i class="fa-solid fa-chevron-down text-[10px]"></i>
+        </button>
+        <div class="absolute right-0 mt-1 w-36 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 hidden group-hover:block z-50">
+          <button id="exportMdBtn" class="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 flex items-center gap-2">
+            <i class="fa-brands fa-markdown text-indigo-500"></i> Markdown (.md)
+          </button>
+          <button id="exportTxtBtn" class="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 flex items-center gap-2">
+            <i class="fa-regular fa-file-lines text-slate-400"></i> Plain Text (.txt)
+          </button>
+        </div>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button id="themeToggleBtn" title="Toggle Theme" class="p-2 rounded-md text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-moon dark:hidden"></i>
+        <i class="fa-solid fa-sun hidden dark:inline"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Work Area -->
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+    <!-- LEFT PANEL: Interactive ASCII Reference -->
+    <section class="w-full lg:w-[480px] xl:w-[540px] border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900/50 shrink-0">
+      
+      <!-- Filter & Search Toolbar -->
+      <div class="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-900/90">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+          <input 
+            type="text" 
+            id="tableSearchInput" 
+            placeholder="Search by Char, Dec (e.g. 65), Hex (0x41), or Name..." 
+            class="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+          >
+          <button id="clearSearchBtn" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hidden text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Category Pills -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-medium" id="categoryFilterContainer">
+          <button data-cat="all" class="cat-pill px-2.5 py-1 rounded-full bg-indigo-600 text-white transition-colors">All (0-127)</button>
+          <button data-cat="ctrl" class="cat-pill px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">Control (0-31)</button>
+          <button data-cat="digits" class="cat-pill px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">0-9</button>
+          <button data-cat="upper" class="cat-pill px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">A-Z</button>
+          <button data-cat="lower" class="cat-pill px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">a-z</button>
+          <button data-cat="symbols" class="cat-pill px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">Symbols</button>
+        </div>
+      </div>
+
+      <!-- Quick Action Hint -->
+      <div class="px-3 py-1 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+        <span>Click any row to <strong>insert into editor</strong></span>
+        <span>Double-click or copy button for <strong>Dec/Hex</strong></span>
+      </div>
+
+      <!-- ASCII Table List -->
+      <div class="flex-1 overflow-y-auto max-h-[350px] lg:max-h-none">
+        <table class="w-full text-left text-xs font-mono border-collapse" id="asciiTable">
+          <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
+            <tr>
+              <th class="py-2 px-3 w-14 text-center">Char</th>
+              <th class="py-2 px-2.5 w-12 text-center">Dec</th>
+              <th class="py-2 px-2.5 w-12 text-center">Hex</th>
+              <th class="py-2 px-3">Description</th>
+              <th class="py-2 px-2 text-right w-16">Action</th>
+            </tr>
+          </thead>
+          <tbody id="asciiTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono">
+            <!-- Rows injected via JavaScript -->
+          </tbody>
+        </table>
+        <div id="noResults" class="p-8 text-center text-slate-400 hidden text-xs">
+          <i class="fa-regular fa-face-frown text-2xl mb-2"></i>
+          <p>No matching ASCII characters found.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Split Editor & Inspector -->
+    <section class="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+
+      <!-- Editor Subheader Tabs & Tools -->
+      <div class="h-10 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 text-xs">
+        <div class="flex items-center gap-3">
+          <span class="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-code text-indigo-500"></i> Text Workspace
+          </span>
+          <span class="text-slate-300 dark:text-slate-700">|</span>
+          <span id="statWordCount" class="text-slate-500">0 words</span>
+          <span id="statCharCount" class="text-slate-500">0 chars</span>
+          <span id="statLineCount" class="text-slate-500 hidden sm:inline">1 line</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="copyEditorContentBtn" title="Copy All Text" class="px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1">
+            <i class="fa-regular fa-copy"></i>
+            <span class="hidden sm:inline">Copy</span>
+          </button>
+          <button id="wrapToggleBtn" title="Toggle Word Wrap" class="px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
+            <i class="fa-solid fa-paragraph"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dual Component: Editor + Live Inspector -->
+      <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Code Editor Area -->
+        <div class="flex-1 flex overflow-hidden relative bg-white dark:bg-slate-950 font-mono text-xs sm:text-sm">
+          
+          <!-- Line Numbers -->
+          <div id="lineNumbers" class="line-number-gutter w-10 sm:w-12 py-3 bg-slate-50 dark:bg-slate-900/80 border-r border-slate-200 dark:border-slate-800/80 text-right pr-2 text-slate-400 select-none overflow-hidden leading-relaxed font-mono">
+            1
+          </div>
+
+          <!-- Textarea -->
+          <textarea 
+            id="mainEditor" 
+            spellcheck="false" 
+            placeholder="Type, paste text, or click characters in the ASCII table to insert them here..."
+            class="code-editor-area flex-1 p-3 bg-transparent text-slate-800 dark:text-slate-100 resize-none outline-none leading-relaxed font-mono overflow-auto"
+          ></textarea>
+        </div>
+
+        <!-- ASCII Inspector & Byte Visualizer Drawer/Panel -->
+        <div class="w-full md:w-80 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex flex-col text-xs shrink-0 max-h-72 md:max-h-none overflow-y-auto">
+          
+          <div class="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900 font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-microchip text-indigo-500"></i>
+              Live ASCII Inspector
+            </span>
+            <span id="inspectContext" class="text-[10px] font-normal text-slate-400 font-mono">Selection or Cursor</span>
+          </div>
+
+          <!-- Single Character Focused Card -->
+          <div class="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-indigo-50/40 dark:bg-indigo-950/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] uppercase tracking-wider text-slate-400">Inspected Char</span>
+              <span id="inspectCharCategory" class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Printable</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div id="inspectGlyphBox" class="w-12 h-12 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xl font-bold font-mono text-indigo-600 dark:text-indigo-400 shadow-sm">
+                A
+              </div>
+              <div class="space-y-0.5">
+                <div id="inspectCharName" class="font-semibold text-slate-800 dark:text-slate-100">Uppercase A</div>
+                <div id="inspectCharCodeDetail" class="text-slate-500 font-mono text-[11px]">Dec 65 • Hex 0x41</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 text-center font-mono">
+              <div class="bg-white dark:bg-slate-800/80 p-1.5 rounded border border-slate-200 dark:border-slate-700/60">
+                <div class="text-[9px] text-slate-400 uppercase">Decimal</div>
+                <div id="inspectDecVal" class="font-bold text-slate-700 dark:text-slate-200">65</div>
+              </div>
+              <div class="bg-white dark:bg-slate-800/80 p-1.5 rounded border border-slate-200 dark:border-slate-700/60">
+                <div class="text-[9px] text-slate-400 uppercase">Hex</div>
+                <div id="inspectHexVal" class="font-bold text-slate-700 dark:text-slate-200">0x41</div>
+              </div>
+              <div class="bg-white dark:bg-slate-800/80 p-1.5 rounded border border-slate-200 dark:border-slate-700/60">
+                <div class="text-[9px] text-slate-400 uppercase">Binary</div>
+                <div id="inspectBinVal" class="font-bold text-slate-700 dark:text-slate-200 text-[10px]">01000001</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Multi-byte Sequence Breakdown -->
+          <div class="p-3 flex-1 flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Selected Sequence Bytes</span>
+              <span id="byteCountLabel" class="text-[10px] text-slate-400 font-mono">0 bytes</span>
+            </div>
+
+            <div id="bytesList" class="flex-1 space-y-1.5 overflow-y-auto max-h-48 font-mono text-[11px] pr-1">
+              <div class="text-slate-400 text-center py-4 italic">Highlight text in the editor to view the complete ASCII byte stream.</div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Bottom Status Bar -->
+      <footer class="h-7 border-t border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 px-4 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+        <div class="flex items-center gap-4">
+          <span id="statusCursorPos">Ln 1, Col 1</span>
+          <span class="hidden sm:inline">Encoding: ASCII / UTF-8</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="notificationBadge" class="text-indigo-600 dark:text-indigo-400 hidden animate-pulse font-sans font-medium">Ready</span>
+          <span>ASCII 0 - 127</span>
+        </div>
+      </footer>
+
+    </section>
+
+  </main>
+
+  <!-- Interactive JavaScript -->
+  <script>
+    // Complete ASCII Table Dataset (0 - 127)
+    const ASCII_DATA = [
+      { code: 0, hex: "00", bin: "00000000", glyph: "NUL", label: "NUL", name: "Null character", cat: "ctrl" },
+      { code: 1, hex: "01", bin: "00000001", glyph: "SOH", label: "SOH", name: "Start of Header", cat: "ctrl" },
+      { code: 2, hex: "02", bin: "00000010", glyph: "STX", label: "STX", name: "Start of Text", cat: "ctrl" },
+      { code: 3, hex: "03", bin: "00000011", glyph: "ETX", label: "ETX", name: "End of Text", cat: "ctrl" },
+      { code: 4, hex: "04", bin: "00000100", glyph: "EOT", label: "EOT", name: "End of Transmission", cat: "ctrl" },
+      { code: 5, hex: "05", bin: "00000101", glyph: "ENQ", label: "ENQ", name: "Enquiry", cat: "ctrl" },
+      { code: 6, hex: "06", bin: "00000110", glyph: "ACK", label: "ACK", name: "Acknowledgment", cat: "ctrl" },
+      { code: 7, hex: "07", bin: "00000111", glyph: "BEL", label: "BEL", name: "Bell / Alert", cat: "ctrl" },
+      { code: 8, hex: "08", bin: "00001000", glyph: "BS", label: "BS", name: "Backspace", cat: "ctrl" },
+      { code: 9, hex: "09", bin: "00001001", glyph: "HT", label: "\\t", name: "Horizontal Tab", cat: "ctrl" },
+      { code: 10, hex: "0A", bin: "00001010", glyph: "LF", label: "\\n", name: "Line Feed / Newline", cat: "ctrl" },
+      { code: 11, hex: "0B", bin: "00001011", glyph: "VT", label: "\\v", name: "Vertical Tab", cat: "ctrl" },
+      { code: 12, hex: "0C", bin: "00001100", glyph: "FF", label: "\\f", name: "Form Feed", cat: "ctrl" },
+      { code: 13, hex: "0D", bin: "00001101", glyph: "CR", label: "\\r", name: "Carriage Return", cat: "ctrl" },
+      { code: 14, hex: "0E", bin: "00001110", glyph: "SO", label: "SO", name: "Shift Out", cat: "ctrl" },
+      { code: 15, hex: "0F", bin: "00001111", glyph: "SI", label: "SI", name: "Shift In", cat: "ctrl" },
+      { code: 16, hex: "10", bin: "00010000", glyph: "DLE", label: "DLE", name: "Data Link Escape", cat: "ctrl" },
+      { code: 17, hex: "11", bin: "00010001", glyph: "DC1", label: "DC1", name: "Device Control 1", cat: "ctrl" },
+      { code: 18, hex: "12", bin: "00010010", glyph: "DC2", label: "DC2", name: "Device Control 2", cat: "ctrl" },
+      { code: 19, hex: "13", bin: "00010011", glyph: "DC3", label: "DC3", name: "Device Control 3", cat: "ctrl" },
+      { code: 20, hex: "14", bin: "00010100", glyph: "DC4", label: "DC4", name: "Device Control 4", cat: "ctrl" },
+      { code: 21, hex: "15", bin: "00010101", glyph: "NAK", label: "NAK", name: "Negative Acknowledgment", cat: "ctrl" },
+      { code: 22, hex: "16", bin: "00010110", glyph: "SYN", label: "SYN", name: "Synchronous Idle", cat: "ctrl" },
+      { code: 23, hex: "17", bin: "00010111", glyph: "ETB", label: "ETB", name: "End of Transmission Block", cat: "ctrl" },
+      { code: 24, hex: "18", bin: "00011000", glyph: "CAN", label: "CAN", name: "Cancel", cat: "ctrl" },
+      { code: 25, hex: "19", bin: "00011001", glyph: "EM", label: "EM", name: "End of Medium", cat: "ctrl" },
+      { code: 26, hex: "1A", bin: "00011010", glyph: "SUB", label: "SUB", name: "Substitute", cat: "ctrl" },
+      { code: 27, hex: "1B", bin: "00011011", glyph: "ESC", label: "ESC", name: "Escape", cat: "ctrl" },
+      { code: 28, hex: "1C", bin: "00011100", glyph: "FS", label: "FS", name: "File Separator", cat: "ctrl" },
+      { code: 29, hex: "1D", bin: "00011101", glyph: "GS", label: "GS", name: "Group Separator", cat: "ctrl" },
+      { code: 30, hex: "1E", bin: "00011110", glyph: "RS", label: "RS", name: "Record Separator", cat: "ctrl" },
+      { code: 31, hex: "1F", bin: "00011111", glyph: "US", label: "US", name: "Unit Separator", cat: "ctrl" },
+      { code: 32, hex: "20", bin: "00100000", glyph: " ", label: "SPC", name: "Space", cat: "symbols" },
+      { code: 33, hex: "21", bin: "00100001", glyph: "!", label: "!", name: "Exclamation mark", cat: "symbols" },
+      { code: 34, hex: "22", bin: "00100010", glyph: '"', label: '"', name: "Quotation mark", cat: "symbols" },
+      { code: 35, hex: "23", bin: "00100011", glyph: "#", label: "#", name: "Number sign / hash", cat: "symbols" },
+      { code: 36, hex: "24", bin: "00100100", glyph: "$", label: "$", name: "Dollar sign", cat: "symbols" },
+      { code: 37, hex: "25", bin: "00100101", glyph: "%", label: "%", name: "Percent sign", cat: "symbols" },
+      { code: 38, hex: "26", bin: "00100110", glyph: "&", label: "&", name: "Ampersand", cat: "symbols" },
+      { code: 39, hex: "27", bin: "00100111", glyph: "'", label: "'", name: "Apostrophe", cat: "symbols" },
+      { code: 40, hex: "28", bin: "00101000", glyph: "(", label: "(", name: "Left parenthesis", cat: "symbols" },
+      { code: 41, hex: "29", bin: "00101001", glyph: ")", label: ")", name: "Right parenthesis", cat: "symbols" },
+      { code: 42, hex: "2A", bin: "00101010", glyph: "*", label: "*", name: "Asterisk", cat: "symbols" },
+      { code: 43, hex: "2B", bin: "00101011", glyph: "+", label: "+", name: "Plus sign", cat: "symbols" },
+      { code: 44, hex: "2C", bin: "00101100", glyph: ",", label: ",", name: "Comma", cat: "symbols" },
+      { code: 45, hex: "2D", bin: "00101101", glyph: "-", label: "-", name: "Hyphen-minus", cat: "symbols" },
+      { code: 46, hex: "2E", bin: "00101110", glyph: ".", label: ".", name: "Period / Full stop", cat: "symbols" },
+      { code: 47, hex: "2F", bin: "00101111", glyph: "/", label: "/", name: "Slash", cat: "symbols" },
+      { code: 48, hex: "30", bin: "00110000", glyph: "0", label: "0", name: "Digit 0", cat: "digits" },
+      { code: 49, hex: "31", bin: "00110001", glyph: "1", label: "1", name: "Digit 1", cat: "digits" },
+      { code: 50, hex: "32", bin: "00110010", glyph: "2", label: "2", name: "Digit 2", cat: "digits" },
+      { code: 51, hex: "33", bin: "00110011", glyph: "3", label: "3", name: "Digit 3", cat: "digits" },
+      { code: 52, hex: "34", bin: "00110100", glyph: "4", label: "4", name: "Digit 4", cat: "digits" },
+      { code: 53, hex: "35", bin: "00110101", glyph: "5", label: "5", name: "Digit 5", cat: "digits" },
+      { code: 54, hex: "36", bin: "00110110", glyph: "6", label: "6", name: "Digit 6", cat: "digits" },
+      { code: 55, hex: "37", bin: "00110111", glyph: "7", label: "7", name: "Digit 7", cat: "digits" },
+      { code: 56, hex: "38", bin: "00111000", glyph: "8", label: "8", name: "Digit 8", cat: "digits" },
+      { code: 57, hex: "39", bin: "00111001", glyph: "9", label: "9", name: "Digit 9", cat: "digits" },
+      { code: 58, hex: "3A", bin: "00111010", glyph: ":", label: ":", name: "Colon", cat: "symbols" },
+      { code: 59, hex: "3B", bin: "00111011", glyph: ";", label: ";", name: "Semicolon", cat: "symbols" },
+      { code: 60, hex: "3C", bin: "00111100", glyph: "<", label: "<", name: "Less-than", cat: "symbols" },
+      { code: 61, hex: "3D", bin: "00111101", glyph: "=", label: "=", name: "Equals-to", cat: "symbols" },
+      { code: 62, hex: "3E", bin: "00111110", glyph: ">", label: ">", name: "Greater-than", cat: "symbols" },
+      { code: 63, hex: "3F", bin: "00111111", glyph: "?", label: "?", name: "Question mark", cat: "symbols" },
+      { code: 64, hex: "40", bin: "01000000", glyph: "@", label: "@", name: "At sign", cat: "symbols" },
+      { code: 65, hex: "41", bin: "01000001", glyph: "A", label: "A", name: "Uppercase A", cat: "upper" },
+      { code: 66, hex: "42", bin: "01000010", glyph: "B", label: "B", name: "Uppercase B", cat: "upper" },
+      { code: 67, hex: "43", bin: "01000011", glyph: "C", label: "C", name: "Uppercase C", cat: "upper" },
+      { code: 68, hex: "44", bin: "01000100", glyph: "D", label: "D", name: "Uppercase D", cat: "upper" },
+      { code: 69, hex: "45", bin: "01000101", glyph: "E", label: "E", name: "Uppercase E", cat: "upper" },
+      { code: 70, hex: "46", bin: "01000110", glyph: "F", label: "F", name: "Uppercase F", cat: "upper" },
+      { code: 71, hex: "47", bin: "01000111", glyph: "G", label: "G", name: "Uppercase G", cat: "upper" },
+      { code: 72, hex: "48", bin: "01001000", glyph: "H", label: "H", name: "Uppercase H", cat: "upper" },
+      { code: 73, hex: "49", bin: "01001001", glyph: "I", label: "I", name: "Uppercase I", cat: "upper" },
+      { code: 74, hex: "4A", bin: "01001010", glyph: "J", label: "J", name: "Uppercase J", cat: "upper" },
+      { code: 75, hex: "4B", bin: "01001011", glyph: "K", label: "K", name: "Uppercase K", cat: "upper" },
+      { code: 76, hex: "4C", bin: "01001100", glyph: "L", label: "L", name: "Uppercase L", cat: "upper" },
+      { code: 77, hex: "4D", bin: "01001101", glyph: "M", label: "M", name: "Uppercase M", cat: "upper" },
+      { code: 78, hex: "4E", bin: "01001110", glyph: "N", label: "N", name: "Uppercase N", cat: "upper" },
+      { code: 79, hex: "4F", bin: "01001111", glyph: "O", label: "O", name: "Uppercase O", cat: "upper" },
+      { code: 80, hex: "50", bin: "01010000", glyph: "P", label: "P", name: "Uppercase P", cat: "upper" },
+      { code: 81, hex: "51", bin: "01010001", glyph: "Q", label: "Q", name: "Uppercase Q", cat: "upper" },
+      { code: 82, hex: "52", bin: "01010010", glyph: "R", label: "R", name: "Uppercase R", cat: "upper" },
+      { code: 83, hex: "53", bin: "01010011", glyph: "S", label: "S", name: "Uppercase S", cat: "upper" },
+      { code: 84, hex: "54", bin: "01010100", glyph: "T", label: "T", name: "Uppercase T", cat: "upper" },
+      { code: 85, hex: "55", bin: "01010101", glyph: "U", label: "U", name: "Uppercase U", cat: "upper" },
+      { code: 86, hex: "56", bin: "01010110", glyph: "V", label: "V", name: "Uppercase V", cat: "upper" },
+      { code: 87, hex: "57", bin: "01010111", glyph: "W", label: "W", name: "Uppercase W", cat: "upper" },
+      { code: 88, hex: "58", bin: "01011000", glyph: "X", label: "X", name: "Uppercase X", cat: "upper" },
+      { code: 89, hex: "59", bin: "01011001", glyph: "Y", label: "Y", name: "Uppercase Y", cat: "upper" },
+      { code: 90, hex: "5A", bin: "01011010", glyph: "Z", label: "Z", name: "Uppercase Z", cat: "upper" },
+      { code: 91, hex: "5B", bin: "01011011", glyph: "[", label: "[", name: "Left square bracket", cat: "symbols" },
+      { code: 92, hex: "5C", bin: "01011100", glyph: "\\", label: "\\", name: "Backslash", cat: "symbols" },
+      { code: 93, hex: "5D", bin: "01011101", glyph: "]", label: "]", name: "Right square bracket", cat: "symbols" },
+      { code: 94, hex: "5E", bin: "01011110", glyph: "^", label: "^", name: "Caret / Circumflex", cat: "symbols" },
+      { code: 95, hex: "5F", bin: "01011111", glyph: "_", label: "_", name: "Underscore", cat: "symbols" },
+      { code: 96, hex: "60", bin: "01100000", glyph: "`", label: "`", name: "Grave accent / backtick", cat: "symbols" },
+      { code: 97, hex: "61", bin: "01100001", glyph: "a", label: "a", name: "Lowercase a", cat: "lower" },
+      { code: 98, hex: "62", bin: "01100010", glyph: "b", label: "b", name: "Lowercase b", cat: "lower" },
+      { code: 99, hex: "63", bin: "01100011", glyph: "c", label: "c", name: "Lowercase c", cat: "lower" },
+      { code: 100, hex: "64", bin: "01100100", glyph: "d", label: "d", name: "Lowercase d", cat: "lower" },
+      { code: 101, hex: "65", bin: "01100101", glyph: "e", label: "e", name: "Lowercase e", cat: "lower" },
+      { code: 102, hex: "66", bin: "01100110", glyph: "f", label: "f", name: "Lowercase f", cat: "lower" },
+      { code: 103, hex: "67", bin: "01100111", glyph: "g", label: "g", name: "Lowercase g", cat: "lower" },
+      { code: 104, hex: "68", bin: "01101000", glyph: "h", label: "h", name: "Lowercase h", cat: "lower" },
+      { code: 105, hex: "69", bin: "01101001", glyph: "i", label: "i", name: "Lowercase i", cat: "lower" },
+      { code: 106, hex: "6A", bin: "01101010", glyph: "j", label: "j", name: "Lowercase j", cat: "lower" },
+      { code: 107, hex: "6B", bin: "01101011", glyph: "k", label: "k", name: "Lowercase k", cat: "lower" },
+      { code: 108, hex: "6C", bin: "01101100", glyph: "l", label: "l", name: "Lowercase l", cat: "lower" },
+      { code: 109, hex: "6D", bin: "01101101", glyph: "m", label: "m", name: "Lowercase m", cat: "lower" },
+      { code: 110, hex: "6E", bin: "01101110", glyph: "n", label: "n", name: "Lowercase n", cat: "lower" },
+      { code: 111, hex: "6F", bin: "01101111", glyph: "o", label: "o", name: "Lowercase o", cat: "lower" },
+      { code: 112, hex: "70", bin: "01110000", glyph: "p", label: "p", name: "Lowercase p", cat: "lower" },
+      { code: 113, hex: "71", bin: "01110001", glyph: "q", label: "q", name: "Lowercase q", cat: "lower" },
+      { code: 114, hex: "72", bin: "01110010", glyph: "r", label: "r", name: "Lowercase r", cat: "lower" },
+      { code: 115, hex: "73", bin: "01110011", glyph: "s", label: "s", name: "Lowercase s", cat: "lower" },
+      { code: 116, hex: "74", bin: "01110100", glyph: "t", label: "t", name: "Lowercase t", cat: "lower" },
+      { code: 117, hex: "75", bin: "01110101", glyph: "u", label: "u", name: "Lowercase u", cat: "lower" },
+      { code: 118, hex: "76", bin: "01110110", glyph: "v", label: "v", name: "Lowercase v", cat: "lower" },
+      { code: 119, hex: "77", bin: "01110111", glyph: "w", label: "w", name: "Lowercase w", cat: "lower" },
+      { code: 120, hex: "78", bin: "01111000", glyph: "x", label: "x", name: "Lowercase x", cat: "lower" },
+      { code: 121, hex: "79", bin: "01111001", glyph: "y", label: "y", name: "Lowercase y", cat: "lower" },
+      { code: 122, hex: "7A", bin: "01111010", glyph: "z", label: "z", name: "Lowercase z", cat: "lower" },
+      { code: 123, hex: "7B", bin: "01111011", glyph: "{", label: "{", name: "Left curly brace", cat: "symbols" },
+      { code: 124, hex: "7C", bin: "01111100", glyph: "|", label: "|", name: "Vertical bar / pipe", cat: "symbols" },
+      { code: 125, hex: "7D", bin: "01111101", glyph: "}", label: "}", name: "Right curly brace", cat: "symbols" },
+      { code: 126, hex: "7E", bin: "01111110", glyph: "~", label: "~", name: "Tilde", cat: "symbols" },
+      { code: 127, hex: "7F", bin: "01111111", glyph: "DEL", label: "DEL", name: "Delete", cat: "ctrl" }
+    ];
+
+    // DOM References
+    const asciiTableBody = document.getElementById('asciiTableBody');
+    const tableSearchInput = document.getElementById('tableSearchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const categoryFilterContainer = document.getElementById('categoryFilterContainer');
+    const noResults = document.getElementById('noResults');
+    const mainEditor = document.getElementById('mainEditor');
+    const lineNumbers = document.getElementById('lineNumbers');
+    const statWordCount = document.getElementById('statWordCount');
+    const statCharCount = document.getElementById('statCharCount');
+    const statLineCount = document.getElementById('statLineCount');
+    const statusCursorPos = document.getElementById('statusCursorPos');
+    const notificationBadge = document.getElementById('notificationBadge');
+
+    // Inspector References
+    const inspectGlyphBox = document.getElementById('inspectGlyphBox');
+    const inspectCharName = document.getElementById('inspectCharName');
+    const inspectCharCodeDetail = document.getElementById('inspectCharCodeDetail');
+    const inspectCharCategory = document.getElementById('inspectCharCategory');
+    const inspectDecVal = document.getElementById('inspectDecVal');
+    const inspectHexVal = document.getElementById('inspectHexVal');
+    const inspectBinVal = document.getElementById('inspectBinVal');
+    const bytesList = document.getElementById('bytesList');
+    const byteCountLabel = document.getElementById('byteCountLabel');
+    const inspectContext = document.getElementById('inspectContext');
+
+    // Controls
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const insertTableBtn = document.getElementById('insertTableBtn');
+    const clearEditorBtn = document.getElementById('clearEditorBtn');
+    const copyEditorContentBtn = document.getElementById('copyEditorContentBtn');
+    const wrapToggleBtn = document.getElementById('wrapToggleBtn');
+    const exportMdBtn = document.getElementById('exportMdBtn');
+    const exportTxtBtn = document.getElementById('exportTxtBtn');
+
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let isWordWrap = true;
+
+    // Initialize Theme
+    function initTheme() {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    // Flash Toast / Notification
+    function showNotification(msg) {
+      notificationBadge.textContent = msg;
+      notificationBadge.classList.remove('hidden');
+      setTimeout(() => {
+        notificationBadge.classList.add('hidden');
+      }, 2000);
+    }
+
+    // Render Table Rows
+    function renderTable() {
+      const filtered = ASCII_DATA.filter(item => {
+        const matchesCategory = 
+          currentFilter === 'all' || 
+          (currentFilter === 'ctrl' && item.cat === 'ctrl') ||
+          (currentFilter === 'digits' && item.cat === 'digits') ||
+          (currentFilter === 'upper' && item.cat === 'upper') ||
+          (currentFilter === 'lower' && item.cat === 'lower') ||
+          (currentFilter === 'symbols' && item.cat === 'symbols');
+
+        if (!matchesCategory) return false;
+
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          item.code.toString().includes(q) ||
+          item.hex.toLowerCase().includes(q.replace('0x', '')) ||
+          item.label.toLowerCase().includes(q) ||
+          item.name.toLowerCase().includes(q)
+        );
+      });
+
+      asciiTableBody.innerHTML = '';
+      if (filtered.length === 0) {
+        noResults.classList.remove('hidden');
+        return;
+      }
+      noResults.classList.add('hidden');
+
+      filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-indigo-50/70 dark:hover:bg-slate-800/80 cursor-pointer transition-colors group";
+        tr.title = `Click to insert '${item.label}' into editor`;
+
+        const isCtrl = item.cat === 'ctrl';
+        const glyphBadge = isCtrl 
+          ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400">${item.label}</span>`
+          : `<span class="px-2 py-0.5 rounded font-bold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50">${item.label}</span>`;
+
+        tr.innerHTML = `
+          <td class="py-2 px-3 text-center">${glyphBadge}</td>
+          <td class="py-2 px-2.5 text-center text-slate-500 dark:text-slate-400">${item.code}</td>
+          <td class="py-2 px-2.5 text-center font-semibold text-slate-700 dark:text-slate-300">0x${item.hex}</td>
+          <td class="py-2 px-3 text-slate-700 dark:text-slate-300 truncate max-w-[150px] font-sans" title="${item.name}">${item.name}</td>
+          <td class="py-2 px-2 text-right">
+            <button class="insert-btn p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded" title="Insert character">
+              <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+          </td>
+        `;
+
+        // Click row: insert character
+        tr.addEventListener('click', (e) => {
+          insertIntoEditor(item.code <= 31 ? '' : item.glyph);
+          inspectCharacter(item.code);
+        });
+
+        asciiTableBody.appendChild(tr);
+      });
+    }
+
+    // Insert text at current cursor location
+    function insertIntoEditor(text) {
+      if (!text) {
+        showNotification("Control char - inspected only");
+        return;
+      }
+      const start = mainEditor.selectionStart;
+      const end = mainEditor.selectionEnd;
+      const current = mainEditor.value;
+
+      mainEditor.value = current.substring(0, start) + text + current.substring(end);
+      mainEditor.selectionStart = mainEditor.selectionEnd = start + text.length;
+      mainEditor.focus();
+      updateEditorMetrics();
+      showNotification(`Inserted '${text}'`);
+    }
+
+    // Inspect a single ASCII code in Inspector Card
+    function inspectCharacter(charCode) {
+      const item = ASCII_DATA[charCode] || {
+        code: charCode,
+        hex: charCode.toString(16).toUpperCase().padStart(2, '0'),
+        bin: charCode.toString(2).padStart(8, '0'),
+        glyph: String.fromCharCode(charCode),
+        label: String.fromCharCode(charCode),
+        name: `Unicode U+${charCode.toString(16).toUpperCase().padStart(4, '0')}`,
+        cat: 'extended'
+      };
+
+      inspectGlyphBox.textContent = item.code <= 31 ? item.label : (item.code === 32 ? 'SPC' : item.glyph);
+      inspectCharName.textContent = item.name;
+      inspectCharCodeDetail.textContent = `Dec ${item.code} • Hex 0x${item.hex}`;
+      inspectCharCategory.textContent = item.cat ? item.cat.toUpperCase() : 'CHAR';
+      inspectDecVal.textContent = item.code;
+      inspectHexVal.textContent = `0x${item.hex}`;
+      inspectBinVal.textContent = item.bin;
+    }
+
+    // Update Line Numbers & Statistics
+    function updateEditorMetrics() {
+      const content = mainEditor.value;
+      const lines = content.split('\n');
+      const lineCount = lines.length;
+
+      // Update line gutter
+      let gutterHtml = '';
+      for (let i = 1; i <= lineCount; i++) {
+        gutterHtml += `<div>${i}</div>`;
+      }
+      lineNumbers.innerHTML = gutterHtml;
+
+      // Sync scroll
+      lineNumbers.scrollTop = mainEditor.scrollTop;
+
+      // Stats
+      statLineCount.textContent = `${lineCount} line${lineCount === 1 ? '' : 's'}`;
+      statCharCount.textContent = `${content.length} chars`;
+      
+      const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+      statWordCount.textContent = `${words} word${words === 1 ? '' : 's'}`;
+
+      // Cursor position
+      const cursor = mainEditor.selectionStart;
+      let line = 1;
+      let col = 1;
+      for (let i = 0; i < cursor; i++) {
+        if (content[i] === '\n') {
+          line++;
+          col = 1;
+        } else {
+          col++;
+        }
+      }
+      statusCursorPos.textContent = `Ln ${line}, Col ${col}`;
+
+      // Analyze Selection or Character under Cursor
+      analyzeEditorSelection();
+    }
+
+    // Inspect live cursor or selection stream
+    function analyzeEditorSelection() {
+      const content = mainEditor.value;
+      const start = mainEditor.selectionStart;
+      const end = mainEditor.selectionEnd;
+
+      if (start !== end) {
+        // Multi-char selection
+        const selectedText = content.substring(start, end);
+        byteCountLabel.textContent = `${selectedText.length} byte${selectedText.length === 1 ? '' : 's'}`;
+        inspectContext.textContent = `Selection (${selectedText.length} bytes)`;
+
+        // Update main inspector with first character of selection
+        inspectCharacter(selectedText.charCodeAt(0));
+
+        // Render Byte Stream
+        let byteHtml = '';
+        for (let i = 0; i < Math.min(selectedText.length, 64); i++) {
+          const charCode = selectedText.charCodeAt(i);
+          const hex = charCode.toString(16).toUpperCase().padStart(2, '0');
+          const bin = charCode.toString(2).padStart(8, '0');
+          const displayChar = charCode < 32 || charCode === 127 ? '·' : selectedText[i];
+
+          byteHtml += `
+            <div class="flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 hover:border-indigo-500 transition-colors">
+              <span class="w-6 text-center font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 rounded">${displayChar}</span>
+              <span class="text-slate-500 font-mono text-[10px]">#${i}</span>
+              <span class="text-slate-600 dark:text-slate-300 font-bold">0x${hex}</span>
+              <span class="text-slate-500 font-mono">${charCode}</span>
+              <span class="text-[9px] text-slate-400 font-mono">${bin}</span>
+            </div>
+          `;
+        }
+        if (selectedText.length > 64) {
+          byteHtml += `<div class="text-center py-1 text-slate-400 italic text-[10px]">+ ${selectedText.length - 64} more bytes</div>`;
+        }
+        bytesList.innerHTML = byteHtml;
+
+      } else {
+        // No selection: inspect character at cursor or fallback
+        byteCountLabel.textContent = '0 bytes';
+        inspectContext.textContent = 'Cursor Position';
+
+        if (content.length > 0 && start > 0) {
+          inspectCharacter(content.charCodeAt(start - 1));
+        } else if (content.length > 0 && start === 0) {
+          inspectCharacter(content.charCodeAt(0));
+        } else {
+          inspectCharacter(65); // default to 'A'
+        }
+
+        bytesList.innerHTML = `
+          <div class="text-slate-400 text-center py-6 italic text-[11px]">
+            Highlight any text in the editor to view the real-time byte sequence breakdown.
+          </div>
+        `;
+      }
+    }
+
+    // Insert Full Markdown Table
+    function insertFullTableIntoEditor() {
+      let md = `| Char | Number | Hex | Description |\n`;
+      md += `| :---: | :---: | :---: | :--- |\n`;
+
+      ASCII_DATA.forEach(row => {
+        let ch = row.label;
+        if (ch === '|') ch = '\\|';
+        if (ch === '`') ch = '\\`';
+        md += `| ${ch} | ${row.code} | 0x${row.hex} | ${row.name} |\n`;
+      });
+
+      mainEditor.value = md;
+      updateEditorMetrics();
+      showNotification("ASCII Table Inserted!");
+    }
+
+    // Setup Clipboard Action
+    function copyEditorText() {
+      if (!mainEditor.value) {
+        showNotification("Nothing to copy!");
+        return;
+      }
+      mainEditor.select();
+      try {
+        document.execCommand('copy');
+        showNotification("Copied to clipboard!");
+      } catch (err) {
+        showNotification("Failed to copy");
+      }
+    }
+
+    // Export File Generator
+    function downloadFile(content, fileName, type) {
+      const blob = new Blob([content], { type: type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showNotification(`Exported ${fileName}`);
+    }
+
+    // Event Listeners
+    window.onload = function () {
+      initTheme();
+      renderTable();
+
+      // Sample Initial Content in Editor
+      mainEditor.value = `# ASCII Character Reference & Workspace\n\nWelcome to ASCII Studio! Highlight text to inspect its byte codes, or click entries on the left.\n\nSample ASCII Characters:\n- Dec 65  = 0x41 = 'A'\n- Dec 97  = 0x61 = 'a'\n- Dec 126 = 0x7E = '~'\n\nQuick formula: 'a' (97) - 'A' (65) = 32 (toggle bit 5).`;
+      updateEditorMetrics();
+
+      // Search listener
+      tableSearchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        clearSearchBtn.classList.toggle('hidden', !searchQuery);
+        renderTable();
+      });
+
+      clearSearchBtn.addEventListener('click', () => {
+        tableSearchInput.value = '';
+        searchQuery = '';
+        clearSearchBtn.classList.add('hidden');
+        renderTable();
+      });
+
+      // Category filters
+      categoryFilterContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.cat-pill');
+        if (!btn) return;
+        document.querySelectorAll('.cat-pill').forEach(b => {
+          b.className = 'cat-pill px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors';
+        });
+        btn.className = 'cat-pill px-2.5 py-1 rounded-full bg-indigo-600 text-white transition-colors';
+        currentFilter = btn.dataset.cat;
+        renderTable();
+      });
+
+      // Editor input & cursor events
+      mainEditor.addEventListener('input', updateEditorMetrics);
+      mainEditor.addEventListener('keyup', updateEditorMetrics);
+      mainEditor.addEventListener('click', updateEditorMetrics);
+      mainEditor.addEventListener('select', updateEditorMetrics);
+      mainEditor.addEventListener('scroll', () => {
+        lineNumbers.scrollTop = mainEditor.scrollTop;
+      });
+
+      // Theme toggle
+      themeToggleBtn.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+      });
+
+      // Action buttons
+      insertTableBtn.addEventListener('click', insertFullTableIntoEditor);
+      clearEditorBtn.addEventListener('click', () => {
+        mainEditor.value = '';
+        updateEditorMetrics();
+        showNotification("Editor cleared");
+      });
+      copyEditorContentBtn.addEventListener('click', copyEditorText);
+
+      // Word Wrap toggle
+      wrapToggleBtn.addEventListener('click', () => {
+        isWordWrap = !isWordWrap;
+        if (isWordWrap) {
+          mainEditor.classList.remove('whitespace-pre');
+          mainEditor.classList.add('whitespace-pre-wrap');
+          wrapToggleBtn.classList.add('text-indigo-600', 'dark:text-indigo-400');
+          showNotification("Word wrap enabled");
+        } else {
+          mainEditor.classList.remove('whitespace-pre-wrap');
+          mainEditor.classList.add('whitespace-pre');
+          wrapToggleBtn.classList.remove('text-indigo-600', 'dark:text-indigo-400');
+          showNotification("Word wrap disabled");
+        }
+      });
+
+      // Exports
+      exportMdBtn.addEventListener('click', () => {
+        downloadFile(mainEditor.value, 'ascii_workspace.md', 'text/markdown');
+      });
+      exportTxtBtn.addEventListener('click', () => {
+        downloadFile(mainEditor.value, 'ascii_workspace.txt', 'text/plain');
+      });
+    };
+  </script>
+</body>
+</html>
