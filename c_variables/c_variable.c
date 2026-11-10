@@ -21,17 +21,23 @@ int main(){
     // printf(intValue);   // throws an error, we can't print the variable directly like other programming language 
 
     char character = 'A';
-    printf("%c \n",character);
-
     int intNumber = 1 ; 
-    printf("%d \n",intNumber);
-
     float floatNumber = 1.32;
-    printf("%f \n",floatNumber);
+   
     //Format specifier
     // float floatValue = 3.4;
     // printf(floatValue);
-    return 0;       
+
+    for(int i = 1 ; i <= 10;  i++){
+        printf("%i", i);
+    }
+
+    printf("\nCharacter : %c, Integer : %i, Floating : %f",intNumber,character,floatNumber);
+    return 0;  
+
+    //You can also print values directly without storing them in variables, 
+    //as long as you use the correct format specifier:
+
 }
 
 
