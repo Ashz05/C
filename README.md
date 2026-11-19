@@ -26,7 +26,7 @@ Welcome to my C programming repository! <br>This project is a collection of code
 
 #### Navigate to the source directory:
 
-* cd c-{directory-name}/
+* cd {directory-name}
 
 #### Compile a program:
 
